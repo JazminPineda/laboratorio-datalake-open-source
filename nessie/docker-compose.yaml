@@ -1,0 +1,49 @@
+services:
+  postgres-nessie:
+    image: postgres:16.13-alpine
+    environment:
+      POSTGRES_USER: nessie
+      POSTGRES_PASSWORD: nessie
+      POSTGRES_DB: nessie
+    volumes:
+      - ../data/nessie/postgres:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "nessie"]
+      interval: 10s
+      retries: 5
+      start_period: 5s
+    restart: always
+
+  nessie:
+    image: ghcr.io/projectnessie/nessie:0.107.3
+    ports:
+      - "19120:19120"
+      - "9090:9000"
+    environment:
+      nessie.version.store.type: JDBC
+      quarkus.datasource.jdbc.url: jdbc:postgresql://postgres-nessie:5432/nessie
+      quarkus.datasource.username: nessie
+      quarkus.datasource.password: nessie
+      nessie.catalog.default-warehouse: warehouse
+      nessie.catalog.warehouses.warehouse.location: s3://warehouse/
+      nessie.catalog.service.s3.default-options.endpoint: http://rustfs:9000
+      # Required for non-AWS S3 — routes requests via endpoint URL instead of subdomain (bucket.host)
+      nessie.catalog.service.s3.default-options.path-style-access: "true"
+      # Dummy value — AWS SDK requires a region to be set but RustFS ignores it
+      nessie.catalog.service.s3.default-options.region: us-east-1
+      # Nessie requires credentials via secret URI even for plain values (STATIC mode default)
+      # The URI references a BASIC secret pair — name=access key ID, secret=secret key
+      nessie.catalog.service.s3.default-options.access-key: "urn:nessie-secret:quarkus:nessie.catalog.secrets.access-key"
+      nessie.catalog.secrets.access-key.name: rustfsadmin
+      nessie.catalog.secrets.access-key.secret: rustfsadmin
+    depends_on:
+      postgres-nessie:
+        condition: service_healthy
+    restart: always
+
+networks:
+  default:
+    external: true
+    name: data-platform
