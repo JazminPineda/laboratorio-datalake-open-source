@@ -1,0 +1,25 @@
+redis:
+  host: localhost
+  port: 6380
+  queue_key: scrapworker:jobs
+
+rustfs:
+  endpoint: http://localhost:9000
+  bucket: warehouse
+  path_style: true
+
+nessie:
+  uri: http://localhost:19120/iceberg
+  prefix: main
+
+schemas:
+  binance_trades:
+    fetch:
+      type: one_shot
+    response_map:
+      items: null             # root response is the array
+
+endpoints:
+  BINANCE_TRADES:
+    schema: binance_trades
+    base_url: https://api.binance.com/api/v3/trades
