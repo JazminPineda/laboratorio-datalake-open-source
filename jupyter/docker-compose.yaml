@@ -1,0 +1,29 @@
+services:
+  jupyter:
+    image: quay.io/jupyter/pyspark-notebook:spark-3.5.3
+    container_name: jupyter
+    ports:
+      - "8888:8888"
+    environment:
+      # Point Spark driver to the same conf that Airflow worker + Spark cluster use.
+      # spark-defaults.conf configures Nessie catalog, RustFS S3, and Iceberg JARs.
+      SPARK_CONF_DIR: /opt/spark/conf
+      # Disable token auth for local dev convenience (LAN only — do not expose publicly)
+      NOTEBOOK_ARGS: "--NotebookApp.token='' --NotebookApp.password=''"
+    volumes:
+      # Spark config dir — directory mount avoids inode-caching issues on file edits
+      - ../spark:/opt/spark/conf:ro
+      # Iceberg + Nessie JARs — paths must match spark-defaults.conf spark.jars entries
+      - ../data/spark/jars:/opt/spark/user-jars:ro
+      # Event log dir — spark-defaults.conf writes here; mount prevents startup error
+      - ../data/spark/logs:/opt/spark/spark-events
+      # Persistent notebooks
+      - ./notebooks:/home/jovyan/work
+    # Install Trino Python client on startup (for when Trino is running)
+    command: >
+      bash -c "pip install --quiet trino[sqlalchemy] && start-notebook.py"
+
+networks:
+  default:
+    external: true
+    name: data-platform
