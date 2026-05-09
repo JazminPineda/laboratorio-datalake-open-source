@@ -1,0 +1,49 @@
+services:
+  rustfs:
+    # Pinned to avoid silent breakage — check https://github.com/rustfs/rustfs/releases before upgrading
+    # Container runs as uid=10001(rustfs) — host data dir must be chowned accordingly:
+    #   sudo chown -R 10001:10001 rustfs/data/data rustfs/data/applogs
+    # Run init.sh from the project root — it handles mkdir and chown.
+    # Re-check uid after upgrading: docker run --rm --entrypoint id rustfs/rustfs:<new-tag>
+    # Reference: https://github.com/rustfs/rustfs/blob/main/docker-compose.yml
+    image: rustfs/rustfs:1.0.0-alpha.85-glibc
+    command: /data
+    security_opt:
+      - "no-new-privileges:true"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      RUSTFS_ACCESS_KEY: rustfsadmin
+      RUSTFS_SECRET_KEY: rustfsadmin
+      RUSTFS_ADDRESS: 0.0.0.0:9000
+      RUSTFS_CONSOLE_ADDRESS: 0.0.0.0:9001
+      RUSTFS_CONSOLE_ENABLE: "true"
+    volumes:
+      - ../data/rustfs/data:/data
+      - ../data/rustfs/applogs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:9000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  rustfs-init:
+    image: amazon/aws-cli
+    depends_on:
+      rustfs:
+        condition: service_healthy
+    environment:
+      AWS_ACCESS_KEY_ID: rustfsadmin      # must match RUSTFS_ACCESS_KEY
+      AWS_SECRET_ACCESS_KEY: rustfsadmin  # must match RUSTFS_SECRET_KEY
+      AWS_DEFAULT_REGION: us-east-1       # required by AWS CLI but ignored by RustFS
+    entrypoint: >
+      aws --endpoint-url http://rustfs:9000 s3 mb s3://warehouse
+    restart: on-failure
+
+networks:
+  default:
+    external: true
+    name: data-platform
