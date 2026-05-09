@@ -1,0 +1,7 @@
+psycopg2-binary
+astronomer-cosmos
+dbt-core
+dbt-postgres @ git+https://github.com/dbt-labs/dbt-postgres.git
+apache-airflow-providers-apache-spark
+apache-airflow-providers-trino
+pyspark>=3.5,<4
