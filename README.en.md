@@ -87,11 +87,17 @@ curl -X POST http://localhost:19120/iceberg/v1/main/namespaces \
   -d '{"namespace": ["scraper"]}'
 ```
 
-powershell:
+PowerShell:
 ```powershell
-Invoke-WebRequest -Uri http://localhost:19120/iceberg/v1/main/namespaces -Method POST -Headers @{"Content-Type"="application/json"} -Body '{"namespace": ["default"]}'
+Invoke-WebRequest -Uri "http://localhost:19120/iceberg/v1/main/namespaces" `
+    -Method POST `
+    -ContentType "application/json" `
+    -Body '{"namespace":["default"]}'
 
-Invoke-WebRequest -Uri http://localhost:19120/iceberg/v1/main/namespaces -Method POST -Headers @{"Content-Type"="application/json"} -Body '{"namespace": ["scraper"]}'
+Invoke-WebRequest -Uri "http://localhost:19120/iceberg/v1/main/namespaces" `
+    -Method POST `
+    -ContentType "application/json" `
+    -Body '{"namespace":["scraper"]}'
 ```
 
 
@@ -130,15 +136,17 @@ All DAGs are paused at creation. Unpause each one in the Airflow UI before trigg
 Only required for `scraper_pipeline_v1`. Runs on the host directly (not dockerized):
 
 ```bash
+uv venv .venv 
 cd scrapworker
-pip install -e .
+uv pip install -e .
 CONFIG_PATH=./config/config.local.yaml RUSTFS_ACCESS_KEY=rustfsadmin RUSTFS_SECRET_KEY=rustfsadmin python -m scrapworker
 ```
 
 powershell:
 ```powershell
+uv venv .venv 
 cd scrapworker
-pip install -e .
+uv pip install -e .
 $env:CONFIG_PATH="./config/config.local.yaml"
 $env:RUSTFS_ACCESS_KEY="rustfsadmin"
 $env:RUSTFS_SECRET_KEY="rustfsadmin"
