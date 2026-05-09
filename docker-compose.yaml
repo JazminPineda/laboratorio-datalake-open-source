@@ -1,0 +1,6 @@
+include:
+  - rustfs/docker-compose.yaml
+  - nessie/docker-compose.yaml
+  - spark/docker-compose.yaml
+  - airflow-docker/docker-compose.yaml
+  - trino/docker-compose.yaml

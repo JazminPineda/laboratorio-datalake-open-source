@@ -1,0 +1,94 @@
+# Cross-stack orchestration layer — auto-merged by Compose with docker-compose.yaml.
+#
+# Responsibilities:
+#   1. Profiles   — controls which services start per invocation
+#                   spark : rustfs → nessie → spark → airflow
+#                   all   : everything (spark path + trino)
+#   2. Healthchecks — declared here for services that need cross-stack gating
+#                     (rustfs healthcheck lives in rustfs/docker-compose.yaml and is reused)
+#   3. depends_on  — enforces health-gated startup order across stacks
+
+services:
+
+  # ── Shared core ────────────────────────────────────────────────────────────
+
+  rustfs:
+    profiles: [spark, all]
+
+  rustfs-init:
+    profiles: [spark, all]
+
+  postgres-nessie:
+    profiles: [spark, all]
+
+  nessie:
+    profiles: [spark, all]
+    # Nessie image (quarkus-micro) has no curl/wget — use bash TCP check
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/19120'"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 60s
+    depends_on:
+      rustfs:
+        condition: service_healthy  # reuses healthcheck from rustfs/docker-compose.yaml
+
+  # ── Spark ──────────────────────────────────────────────────────────────────
+
+  spark-master:
+    profiles: [spark, all]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      nessie:
+        condition: service_healthy
+
+  spark-worker:
+    profiles: [spark, all]
+
+  # ── Airflow ────────────────────────────────────────────────────────────────
+
+  postgres:
+    profiles: [spark, all]
+
+  redis:
+    profiles: [spark, all]
+
+  # airflow-init completes before all other airflow services start,
+  # so gating it on spark-master propagates the wait to the whole airflow stack.
+  airflow-init:
+    profiles: [spark, all]
+    depends_on:
+      spark-master:
+        condition: service_healthy
+
+  airflow-apiserver:
+    profiles: [spark, all]
+
+  airflow-scheduler:
+    profiles: [spark, all]
+
+  airflow-dag-processor:
+    profiles: [spark, all]
+
+  airflow-worker:
+    profiles: [spark, all]
+
+  airflow-triggerer:
+    profiles: [spark, all]
+
+  # ── Trino (all only) ───────────────────────────────────────────────────────
+
+  trino-coordinator:
+    profiles: [all]
+    depends_on:
+      nessie:
+        condition: service_healthy
+
+  trino-worker:
+    profiles: [all]
