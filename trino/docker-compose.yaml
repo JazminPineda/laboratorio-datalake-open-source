@@ -1,0 +1,31 @@
+services:
+  trino-coordinator:
+    image: trinodb/trino:469
+    container_name: trino-coordinator
+    ports:
+      - "8085:8080"
+    volumes:
+      - ./coordinator/etc:/etc/trino:ro
+      - ../data/trino/coordinator:/data/trino
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/v1/info"]
+      interval: 10s
+      retries: 5
+      start_period: 30s
+    restart: always
+
+  trino-worker:
+    image: trinodb/trino:469
+    container_name: trino-worker
+    volumes:
+      - ./worker/etc:/etc/trino:ro
+      - ../data/trino/worker:/data/trino
+    depends_on:
+      trino-coordinator:
+        condition: service_healthy
+    restart: always
+
+networks:
+  default:
+    external: true
+    name: data-platform
